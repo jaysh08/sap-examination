@@ -1,15 +1,31 @@
 "use client";
+import { useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/context/ThemeContext";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
-import { User, Moon, Sun, Bell, Shield, Trash2, LogOut } from "lucide-react";
+import { User, Moon, Sun, Bell, Shield, Trash2, LogOut, AlertTriangle } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export default function SettingsPage() {
   const { profile, signOut } = useAuth();
   const { theme, toggleTheme } = useTheme();
+  const [showResetModal, setShowResetModal] = useState(false);
+
+  const handleResetProgress = () => {
+    localStorage.removeItem("xp");
+    localStorage.removeItem("level");
+    localStorage.removeItem("streak");
+    localStorage.removeItem("streakCount");
+    localStorage.removeItem("lastPracticeDate");
+    localStorage.removeItem("attempts");
+    localStorage.removeItem("bookmarks");
+    localStorage.removeItem("quizSessions");
+    setShowResetModal(false);
+    window.location.reload();
+  };
 
   return (
     <div className="container px-4 py-8 mx-auto max-w-2xl">
@@ -85,6 +101,50 @@ export default function SettingsPage() {
           <Button variant="outline" className="w-full justify-start">Enable Two-Factor Authentication</Button>
         </CardContent>
       </Card>
+
+      <Card className="mb-6 border-red-200 dark:border-red-900">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-red-600 dark:text-red-400">
+            <Trash2 className="h-5 w-5" /> Danger Zone
+          </CardTitle>
+          <CardDescription>Irreversible actions - proceed with caution</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-medium">Reset All Progress</p>
+              <p className="text-sm text-muted-foreground">Clear XP, level, streak, and all quiz history</p>
+            </div>
+            <Button variant="destructive" onClick={() => setShowResetModal(true)}>
+              Reset Progress
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {showResetModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <Card className="max-w-md mx-4">
+            <CardContent className="p-6 text-center">
+              <div className="w-16 h-16 mx-auto rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center mb-4">
+                <AlertTriangle className="h-8 w-8 text-red-600" />
+              </div>
+              <h2 className="text-xl font-bold mb-2">Reset All Progress?</h2>
+              <p className="text-muted-foreground mb-6">
+                This will permanently delete your XP, level, streak, quiz history, bookmarks, and achievements. This action cannot be undone.
+              </p>
+              <div className="flex gap-3 justify-center">
+                <Button variant="outline" onClick={() => setShowResetModal(false)}>
+                  Cancel
+                </Button>
+                <Button variant="destructive" onClick={handleResetProgress}>
+                  Yes, Reset Everything
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       <div className="mt-8">
         <Button variant="outline" className="w-full gap-2 text-red-600 hover:text-red-600 hover:border-red-300" onClick={signOut}>
