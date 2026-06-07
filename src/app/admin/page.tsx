@@ -2,12 +2,33 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
-import { Plus, Search, Edit, Trash2, Upload, Download, BookOpen, Users, BarChart3 } from "lucide-react";
+import { Plus, Search, Edit, Trash2, Upload, Download, BookOpen, Users, BarChart3, AlertTriangle, RotateCcw } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export default function AdminPage() {
   const [activeTab, setActiveTab] = useState<"questions" | "analytics" | "users">("questions");
+  const [showResetModal, setShowResetModal] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
+
+  const handleResetAllUsers = async () => {
+    setIsResetting(true);
+    try {
+      const response = await fetch("/api/admin/reset-all", { method: "POST" });
+      const data = await response.json();
+      if (data.success) {
+        alert("All user progress has been reset successfully!");
+      } else {
+        alert("Failed to reset progress: " + (data.error || "Unknown error"));
+      }
+    } catch (error) {
+      alert("Error: " + (error as Error).message);
+    } finally {
+      setIsResetting(false);
+      setShowResetModal(false);
+    }
+  };
 
   return (
     <div className="container px-4 py-8 mx-auto">
@@ -26,7 +47,7 @@ export default function AdminPage() {
       <div className="grid gap-4 md:grid-cols-4 mb-8">
         <Card><CardContent className="p-4 flex items-center gap-4">
           <div className="h-12 w-12 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center"><BookOpen className="h-6 w-6 text-blue-600" /></div>
-          <div><p className="text-2xl font-bold">320</p><p className="text-sm text-muted-foreground">Total Questions</p></div>
+          <div><p className="text-2xl font-bold">60</p><p className="text-sm text-muted-foreground">Total Questions</p></div>
         </CardContent></Card>
         <Card><CardContent className="p-4 flex items-center gap-4">
           <div className="h-12 w-12 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center"><Users className="h-6 w-6 text-green-600" /></div>
@@ -36,10 +57,18 @@ export default function AdminPage() {
           <div className="h-12 w-12 rounded-full bg-yellow-100 dark:bg-yellow-900/30 flex items-center justify-center"><BarChart3 className="h-6 w-6 text-yellow-600" /></div>
           <div><p className="text-2xl font-bold">68%</p><p className="text-sm text-muted-foreground">Avg Score</p></div>
         </CardContent></Card>
-        <Card><CardContent className="p-4 flex items-center gap-4">
-          <div className="h-12 w-12 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center"><Users className="h-6 w-6 text-purple-600" /></div>
-          <div><p className="text-2xl font-bold">45</p><p className="text-sm text-muted-foreground">Flagged Q&apos;s</p></div>
-        </CardContent></Card>
+        <Card className="border-red-200 dark:border-red-900">
+          <CardContent className="p-4 flex items-center gap-4">
+            <div className="h-12 w-12 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+              <RotateCcw className="h-6 w-6 text-red-600" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-red-600">Reset</p>
+              <Button variant="destructive" size="sm" onClick={() => setShowResetModal(true)} className="mt-1">
+                Reset All Users
+              </Button>
+            </div>
+          </CardContent></Card>
       </div>
 
       <div className="flex gap-2 mb-6">
@@ -58,6 +87,8 @@ export default function AdminPage() {
               {[
                 { text: "What is the primary purpose of Foundation Objects in SAP SuccessFactors Employee Central?", topic: "EC Basics", difficulty: "medium" },
                 { text: "Which of the following are valid question types in certification exams?", topic: "EC Basics", difficulty: "easy" },
+                { text: "What does MDF stand for in SAP SuccessFactors?", topic: "MDF", difficulty: "easy" },
+                { text: "What is the maximum depth of object inheritance in MDF?", topic: "MDF", difficulty: "hard" },
               ].map((q, i) => (
                 <div key={i} className="p-4 flex items-start gap-4">
                   <div className="flex-1">
@@ -84,6 +115,7 @@ export default function AdminPage() {
               {[
                 { text: "What is the purpose of MDF in EC?", attempts: 234, correctRate: 23 },
                 { text: "How to configure effective dating?", attempts: 189, correctRate: 31 },
+                { text: "Position vs Job Code relationship", attempts: 156, correctRate: 35 },
               ].map((item, i) => (
                 <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-secondary">
                   <div><p className="text-sm font-medium">{item.text}</p><p className="text-xs text-muted-foreground">{item.attempts} attempts</p></div>
@@ -116,6 +148,47 @@ export default function AdminPage() {
             ))}
           </CardContent>
         </Card>
+      )}
+
+      {showResetModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <Card className="max-w-md mx-4">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-red-600 dark:text-red-400">
+                <AlertTriangle className="h-5 w-5" /> Confirm Reset All Users
+              </CardTitle>
+              <CardDescription>This action will reset ALL users&apos; progress across the platform</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="p-4 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
+                <p className="text-sm text-red-800 dark:text-red-200 font-medium mb-2">This will reset:</p>
+                <ul className="text-xs text-red-700 dark:text-red-300 space-y-1">
+                  <li>• All user XP and levels</li>
+                  <li>• All quiz attempts and history</li>
+                  <li>• All bookmarks and notes</li>
+                  <li>• All progress tracking data</li>
+                  <li>• All earned achievements</li>
+                </ul>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                <strong>Questions and topics will NOT be affected.</strong>
+              </p>
+              <div className="flex gap-3">
+                <Button variant="outline" className="flex-1" onClick={() => setShowResetModal(false)}>
+                  Cancel
+                </Button>
+                <Button 
+                  variant="destructive" 
+                  className="flex-1" 
+                  onClick={handleResetAllUsers}
+                  disabled={isResetting}
+                >
+                  {isResetting ? "Resetting..." : "Reset All Users"}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       )}
     </div>
   );
