@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/context/ThemeContext";
 import { Button } from "@/components/ui/Button";
@@ -13,6 +13,11 @@ export default function SettingsPage() {
   const { profile, signOut } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [showResetModal, setShowResetModal] = useState(false);
+  const [isAdminEnabled, setIsAdminEnabled] = useState(false);
+
+  useEffect(() => {
+    setIsAdminEnabled(localStorage.getItem("isAdmin") === "true");
+  }, []);
 
   const handleResetProgress = () => {
     localStorage.removeItem("xp");
@@ -117,6 +122,38 @@ export default function SettingsPage() {
             </div>
             <Button variant="destructive" onClick={() => setShowResetModal(true)}>
               Reset Progress
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Bell className="h-5 w-5" /> Developer Options
+          </CardTitle>
+          <CardDescription>Testing features for development</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-medium">Admin Mode</p>
+              <p className="text-sm text-muted-foreground">Enable access to admin panel</p>
+            </div>
+            <Button 
+              variant={isAdminEnabled ? "default" : "outline"} 
+              size="sm"
+              onClick={() => {
+                if (isAdminEnabled) {
+                  localStorage.removeItem("isAdmin");
+                  setIsAdminEnabled(false);
+                } else {
+                  localStorage.setItem("isAdmin", "true");
+                  setIsAdminEnabled(true);
+                }
+              }}
+            >
+              {isAdminEnabled ? "Enabled" : "Enable"}
             </Button>
           </div>
         </CardContent>

@@ -1,16 +1,26 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
-import { Plus, Search, Edit, Trash2, Upload, Download, BookOpen, Users, BarChart3, AlertTriangle, RotateCcw } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Plus, Search, Edit, Trash2, Upload, Download, BookOpen, Users, BarChart3, AlertTriangle, RotateCcw, Lock } from "lucide-react";
+import { mockTopics } from "@/data/mockData";
 
 export default function AdminPage() {
+  const { profile, loading } = useAuth();
   const [activeTab, setActiveTab] = useState<"questions" | "analytics" | "users">("questions");
   const [showResetModal, setShowResetModal] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    // Check admin status from profile or localStorage
+    const adminFromProfile = profile?.username?.toLowerCase().includes("admin");
+    const adminFromStorage = localStorage.getItem("isAdmin") === "true";
+    setIsAdmin(adminFromProfile || adminFromStorage);
+  }, [profile]);
 
   const handleResetAllUsers = async () => {
     setIsResetting(true);
@@ -30,6 +40,49 @@ export default function AdminPage() {
     }
   };
 
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="container px-4 py-8 mx-auto">
+        <div className="animate-pulse space-y-4">
+          <div className="h-8 bg-gray-200 rounded w-1/4"></div>
+          <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+        </div>
+      </div>
+    );
+  }
+
+  // Admin access required message
+  if (!isAdmin) {
+    return (
+      <div className="container px-4 py-8 mx-auto max-w-md">
+        <Card className="text-center">
+          <CardContent className="p-8">
+            <div className="w-16 h-16 mx-auto rounded-full bg-yellow-100 dark:bg-yellow-900/30 flex items-center justify-center mb-4">
+              <Lock className="h-8 w-8 text-yellow-600" />
+            </div>
+            <h2 className="text-xl font-bold mb-2">Admin Access Required</h2>
+            <p className="text-muted-foreground mb-6">
+              The admin panel is only accessible to administrators. Please contact your system administrator if you need access.
+            </p>
+            <div className="p-4 rounded-lg bg-secondary text-left mb-4">
+              <p className="text-sm font-medium mb-2">To enable admin mode for testing:</p>
+              <ol className="text-xs text-muted-foreground space-y-1 list-decimal list-inside">
+                <li>Go to Settings page</li>
+                <li>Click "Developer Options"</li>
+                <li>Enable "Admin Mode"</li>
+                <li>Refresh this page</li>
+              </ol>
+            </div>
+            <Button variant="outline" onClick={() => window.location.href = "/dashboard"}>
+              Back to Dashboard
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="container px-4 py-8 mx-auto">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
@@ -47,15 +100,15 @@ export default function AdminPage() {
       <div className="grid gap-4 md:grid-cols-4 mb-8">
         <Card><CardContent className="p-4 flex items-center gap-4">
           <div className="h-12 w-12 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center"><BookOpen className="h-6 w-6 text-blue-600" /></div>
-          <div><p className="text-2xl font-bold">60</p><p className="text-sm text-muted-foreground">Total Questions</p></div>
+          <div><p className="text-2xl font-bold">{mockTopics.reduce((sum, t) => sum + t.question_count, 0)}</p><p className="text-sm text-muted-foreground">Total Questions</p></div>
         </CardContent></Card>
         <Card><CardContent className="p-4 flex items-center gap-4">
           <div className="h-12 w-12 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center"><Users className="h-6 w-6 text-green-600" /></div>
-          <div><p className="text-2xl font-bold">1,247</p><p className="text-sm text-muted-foreground">Active Users</p></div>
+          <div><p className="text-2xl font-bold">-</p><p className="text-sm text-muted-foreground">Active Users</p></div>
         </CardContent></Card>
         <Card><CardContent className="p-4 flex items-center gap-4">
           <div className="h-12 w-12 rounded-full bg-yellow-100 dark:bg-yellow-900/30 flex items-center justify-center"><BarChart3 className="h-6 w-6 text-yellow-600" /></div>
-          <div><p className="text-2xl font-bold">68%</p><p className="text-sm text-muted-foreground">Avg Score</p></div>
+          <div><p className="text-2xl font-bold">-</p><p className="text-sm text-muted-foreground">Avg Score</p></div>
         </CardContent></Card>
         <Card className="border-red-200 dark:border-red-900">
           <CardContent className="p-4 flex items-center gap-4">
@@ -84,12 +137,13 @@ export default function AdminPage() {
           </div>
           <Card>
             <CardContent className="p-0 divide-y">
-              {[
-                { text: "What is the primary purpose of Foundation Objects in SAP SuccessFactors Employee Central?", topic: "EC Basics", difficulty: "medium" },
-                { text: "Which of the following are valid question types in certification exams?", topic: "EC Basics", difficulty: "easy" },
-                { text: "What does MDF stand for in SAP SuccessFactors?", topic: "MDF", difficulty: "easy" },
-                { text: "What is the maximum depth of object inheritance in MDF?", topic: "MDF", difficulty: "hard" },
-              ].map((q, i) => (
+              {mockTopics.slice(0, 4).flatMap(topic => 
+                Array.from({ length: Math.min(topic.question_count, 1) }, (_, i) => ({
+                  text: `Sample question for ${topic.name}`,
+                  topic: topic.name,
+                  difficulty: ["easy", "medium", "hard"][i % 3]
+                }))
+              ).map((q, i) => (
                 <div key={i} className="p-4 flex items-start gap-4">
                   <div className="flex-1">
                     <p className="font-medium">{q.text}</p>
@@ -109,43 +163,22 @@ export default function AdminPage() {
 
       {activeTab === "analytics" && (
         <Card>
-          <CardHeader><CardTitle>Most Missed Questions</CardTitle></CardHeader>
+          <CardHeader><CardTitle>Question Analytics</CardTitle></CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {[
-                { text: "What is the purpose of MDF in EC?", attempts: 234, correctRate: 23 },
-                { text: "How to configure effective dating?", attempts: 189, correctRate: 31 },
-                { text: "Position vs Job Code relationship", attempts: 156, correctRate: 35 },
-              ].map((item, i) => (
-                <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-secondary">
-                  <div><p className="text-sm font-medium">{item.text}</p><p className="text-xs text-muted-foreground">{item.attempts} attempts</p></div>
-                  <Badge variant="destructive">{item.correctRate}%</Badge>
-                </div>
-              ))}
-            </div>
+            <p className="text-muted-foreground text-center py-8">
+              Analytics data will appear here once users start taking quizzes.
+            </p>
           </CardContent>
         </Card>
       )}
 
       {activeTab === "users" && (
         <Card>
-          <CardContent className="p-0 divide-y">
-            {[
-              { name: "John Doe", email: "john@example.com", level: 5, xp: 450 },
-              { name: "Jane Smith", email: "jane@example.com", level: 3, xp: 280 },
-            ].map((user, i) => (
-              <div key={i} className="p-4 flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="h-10 w-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold">{user.name.charAt(0)}</div>
-                  <div><p className="font-medium">{user.name}</p><p className="text-sm text-muted-foreground">{user.email}</p></div>
-                </div>
-                <div className="flex items-center gap-4">
-                  <Badge variant="secondary">Level {user.level}</Badge>
-                  <span className="text-sm text-muted-foreground">{user.xp} XP</span>
-                  <Button variant="ghost" size="sm">View</Button>
-                </div>
-              </div>
-            ))}
+          <CardHeader><CardTitle>User Management</CardTitle></CardHeader>
+          <CardContent>
+            <p className="text-muted-foreground text-center py-8">
+              User list will appear here once Supabase is configured.
+            </p>
           </CardContent>
         </Card>
       )}

@@ -6,11 +6,10 @@ import { Button } from "@/components/ui/Button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Progress } from "@/components/ui/Progress";
 import { Badge } from "@/components/ui/Badge";
-
-import { mockTopics, mockProgress, mockStats } from "@/data/mockData";
-import { Target, Trophy, Clock, TrendingUp, Flame, Zap, BookOpen, Brain, RefreshCw } from "lucide-react";
+import { mockTopics } from "@/data/mockData";
+import { Target, Trophy, Flame, Zap, BookOpen, Brain, RefreshCw, Clock } from "lucide-react";
 import Link from "next/link";
-import { calculateAccuracy, calculateXP } from "@/lib/utils";
+import { useEffect, useState } from "react";
 
 function Spinner({ size = "md" }: { size?: "sm" | "md" | "lg" }) {
   const sizes = { sm: "h-4 w-4", md: "h-8 w-8", lg: "h-12 w-12" };
@@ -19,6 +18,14 @@ function Spinner({ size = "md" }: { size?: "sm" | "md" | "lg" }) {
 
 export default function DashboardPage() {
   const { profile, loading } = useAuth();
+  const [localStats, setLocalStats] = useState({ attempted: 0, correct: 0, streak: 0 });
+
+  useEffect(() => {
+    const attempted = parseInt(localStorage.getItem("totalQuestionsAttempted") || "0");
+    const correct = parseInt(localStorage.getItem("correctAnswers") || "0");
+    const streak = parseInt(localStorage.getItem("streakCount") || "0");
+    setLocalStats({ attempted, correct, streak });
+  }, []);
 
   if (loading) {
     return (
@@ -28,9 +35,15 @@ export default function DashboardPage() {
     );
   }
 
-  const xpProgress = profile ? calculateXP(profile.level) : { current: 0, required: 100 };
-  const xpToNext = xpProgress.required - (profile?.xp || 0) % xpProgress.required;
-  const progressPercent = profile ? ((profile.xp % xpProgress.required) / xpProgress.required) * 100 : 0;
+  const totalAttempted = localStats.attempted;
+  const accuracy = totalAttempted > 0 ? Math.round((localStats.correct / totalAttempted) * 100) : 0;
+  const currentStreak = localStats.streak;
+  const currentXP = profile?.xp || parseInt(localStorage.getItem("xp") || "0");
+  const currentLevel = profile?.level || parseInt(localStorage.getItem("level") || "1");
+  const xpForLevel = currentLevel * 100;
+  const xpProgress = currentXP % xpForLevel;
+  const xpToNext = xpForLevel - xpProgress;
+  const progressPercent = (xpProgress / xpForLevel) * 100;
 
   return (
     <div className="container px-4 py-8 mx-auto">
@@ -40,10 +53,10 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-8">
-        <StatCard title="Questions Attempted" value={mockStats.questionsAttempted} icon={Target} color="text-blue-600" />
-        <StatCard title="Overall Accuracy" value={`${mockStats.accuracy}%`} icon={TrendingUp} color="text-green-600" trend={{ value: 5, isPositive: true }} />
-        <StatCard title="Current Streak" value={`${mockStats.currentStreak} days`} icon={Flame} color="text-orange-600" />
-        <StatCard title="Total XP" value={profile?.xp || 0} icon={Zap} color="text-yellow-600" />
+        <StatCard title="Questions Attempted" value={totalAttempted} icon={Target} color="text-blue-600" />
+        <StatCard title="Overall Accuracy" value={`${accuracy}%`} icon={Trophy} color="text-green-600" trend={accuracy >= 70 ? { value: accuracy, isPositive: true } : undefined} />
+        <StatCard title="Current Streak" value={`${currentStreak} days`} icon={Flame} color="text-orange-600" />
+        <StatCard title="Total XP" value={currentXP} icon={Zap} color="text-yellow-600" />
       </div>
 
       <Card className="mb-8">
@@ -54,16 +67,16 @@ export default function DashboardPage() {
                 <Trophy className="h-6 w-6 text-primary" />
               </div>
               <div>
-                <h2 className="font-bold text-xl">Level {profile?.level || 1}</h2>
+                <h2 className="font-bold text-xl">Level {currentLevel}</h2>
                 <p className="text-sm text-muted-foreground">{xpToNext} XP to next level</p>
               </div>
             </div>
-            <Badge variant="secondary" className="text-lg px-4">{profile?.xp || 0} XP</Badge>
+            <Badge variant="secondary" className="text-lg px-4">{currentXP} XP</Badge>
           </div>
           <Progress value={progressPercent} className="h-3" />
           <div className="flex justify-between text-sm text-muted-foreground mt-2">
-            <span>{xpProgress.current} XP</span>
-            <span>{xpProgress.required} XP</span>
+            <span>{xpProgress} XP</span>
+            <span>{xpForLevel} XP</span>
           </div>
         </CardContent>
       </Card>
@@ -95,50 +108,62 @@ export default function DashboardPage() {
             <h2 className="text-xl font-bold">Topic Progress</h2>
             <Link href="/topics"><Button variant="ghost" size="sm">View All</Button></Link>
           </div>
-          <div className="grid gap-4 md:grid-cols-2">
-            {mockTopics.slice(0, 6).map((topic, index) => (
-              <TopicProgressCard key={topic.id} topic={topic} progress={mockProgress[index]} variant={index < 2 ? "weak" : index < 4 ? "strong" : "neutral"} />
-            ))}
-          </div>
+          {totalAttempted > 0 ? (
+            <div className="grid gap-4 md:grid-cols-2">
+              {mockTopics.slice(0, 6).map((topic, index) => {
+                const attemptedForTopic = index === 0 ? Math.floor(totalAttempted * 0.3) : index === 1 ? Math.floor(totalAttempted * 0.25) : index === 2 ? Math.floor(totalAttempted * 0.2) : index === 3 ? Math.floor(totalAttempted * 0.15) : Math.floor(totalAttempted * 0.1);
+                return (
+                  <TopicProgressCard
+                    key={topic.id}
+                    topic={topic}
+                    progress={{ id: 0, user_id: "", topic_id: topic.id, questions_attempted: attemptedForTopic, correct_answers: 0, accuracy: 0, updated_at: "" }}
+                    variant="neutral"
+                  />
+                );
+              })}
+            </div>
+          ) : (
+            <Card>
+              <CardContent className="p-8 text-center">
+                <Target className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <h3 className="font-semibold mb-2">No Progress Yet</h3>
+                <p className="text-sm text-muted-foreground mb-4">Start your first quiz to track your progress!</p>
+                <Link href="/quiz?mode=practice"><Button>Start Practice</Button></Link>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         <div className="space-y-6">
           <Card>
-            <CardHeader><CardTitle className="text-base">Recent Activity</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="text-base">Quick Tips</CardTitle></CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {[
-                  { action: "Completed 10 questions", time: "2 hours ago", icon: Target },
-                  { action: "Achieved 'First Steps' badge", time: "Yesterday", icon: Trophy },
-                  { action: "Practiced Position Management", time: "2 days ago", icon: BookOpen },
-                ].map((activity, index) => (
-                  <div key={index} className="flex items-center gap-3">
-                    <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
-                      <activity.icon className="h-4 w-4 text-primary" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium">{activity.action}</p>
-                      <p className="text-xs text-muted-foreground">{activity.time}</p>
-                    </div>
-                  </div>
-                ))}
+              <div className="space-y-3">
+                <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20">
+                  <p className="text-sm font-medium">Study Strategy</p>
+                  <p className="text-xs text-muted-foreground mt-1">Focus on one topic at a time for better retention</p>
+                </div>
+                <div className="p-3 rounded-lg bg-green-50 dark:bg-green-900/20">
+                  <p className="text-sm font-medium">Goal Setting</p>
+                  <p className="text-xs text-muted-foreground mt-1">Aim for 70%+ accuracy before moving to new topics</p>
+                </div>
+                <div className="p-3 rounded-lg bg-orange-50 dark:bg-orange-900/20">
+                  <p className="text-sm font-medium">Keep Your Streak</p>
+                  <p className="text-xs text-muted-foreground mt-1">Practice daily to maintain your streak!</p>
+                </div>
               </div>
             </CardContent>
           </Card>
 
           <Card>
-            <CardHeader><CardTitle className="text-base flex items-center gap-2"><Brain className="h-4 w-4" /> AI Recommendations</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="text-base flex items-center gap-2"><Clock className="h-4 w-4" /> Getting Started</CardTitle></CardHeader>
             <CardContent>
-              <div className="space-y-3">
-                <div className="p-3 rounded-lg bg-orange-50 dark:bg-orange-900/20">
-                  <p className="text-sm font-medium">Focus on Workflows</p>
-                  <p className="text-xs text-muted-foreground mt-1">Your accuracy dropped to 60% in this topic</p>
-                </div>
-                <div className="p-3 rounded-lg bg-green-50 dark:bg-green-900/20">
-                  <p className="text-sm font-medium">You&apos;re strong in MDF!</p>
-                  <p className="text-xs text-muted-foreground mt-1">85% accuracy - keep it up!</p>
-                </div>
-              </div>
+              <ul className="space-y-2 text-sm text-muted-foreground">
+                <li>1. Browse topics in <Link href="/topics" className="text-primary hover:underline">Topics</Link></li>
+                <li>2. Start a <Link href="/quiz?mode=practice" className="text-primary hover:underline">Practice Quiz</Link></li>
+                <li>3. Track your progress here</li>
+                <li>4. Take <Link href="/mock-exam" className="text-primary hover:underline">Mock Exams</Link> when ready</li>
+              </ul>
             </CardContent>
           </Card>
         </div>
